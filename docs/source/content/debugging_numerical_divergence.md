@@ -42,7 +42,7 @@ The first hop where they disagree localizes the bug.
 | Attention pattern collapses to argmax | Missing attention-score softcap | `cfg.attn_scores_soft_cap` from HF's `attn_logit_softcapping` |
 | First MLP off; gate matches | Forgot gated-MLP wiring | `GatedMLPBridge` with `{gate, in, out}` submodules — not `MLPBridge` |
 | Bias-related drift | Adapter assumes biases that don't exist (Llama / RMSNorm) | `ProcessWeights._safe_get_tensor` handles `None`; check the weight-processing conversions are bias-aware |
-| Drift only in compatibility mode | Hook semantic carve-out missing for post-norm or MLA | See [compatibility_mode.md](compatibility_mode.md) §"Hook semantic parity" |
+| Drift only in compatibility mode | Hook semantic carve-out missing for MLA, or a hook reading stale state from a previous run | See [compatibility_mode.md](compatibility_mode.md) §"Hook semantic parity"; check the second forward matches the first |
 
 ## 3. Isolating weight-processing bugs
 

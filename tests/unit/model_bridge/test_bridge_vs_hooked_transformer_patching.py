@@ -137,22 +137,23 @@ def test_attn_in_cross_run_patch_matches_legacy(
 @pytest.mark.slow
 @pytest.mark.skipif(
     os.getenv("RUN_OLMO2_GAP_TEST", "") != "1",
-    reason="Set RUN_OLMO2_GAP_TEST=1 to exercise the OLMo-2 post-norm gap (1B-param download).",
+    reason="Set RUN_OLMO2_GAP_TEST=1 to run the OLMo-2 post-norm parity check (1B-param download).",
 )
-@pytest.mark.xfail(
-    strict=True,
-    reason="OLMo 2 post-norm: ln1 maps to post_attention_layernorm, so pre-ln1 capture "
-    "reads post-attention residual. Flip to passing when the carve-out is fixed.",
-)
-def test_olmo2_pre_ln_capture_known_gap() -> None:
-    bridge = TransformerBridge.boot_transformers("allenai/OLMo-2-0425-1B", device="cpu")
-    bridge.enable_compatibility_mode(no_processing=True)
-    ht = HookedTransformer.from_pretrained_no_processing("allenai/OLMo-2-0425-1B", device="cpu")
+@pytest.mark.parametrize("hook_slot", ["q_input", "k_input", "v_input"])
+def test_olmo2_post_norm_cross_run_patch_matches_legacy(hook_slot: str) -> None:
+    """Post-norm: ln1 is post_attention_layernorm, so the pre-ln1 capture fires AFTER attention.
+
+    The capture is scoped to a single block forward, so run B forks Q/K/V from its
+    own residual rather than run A's post-attention output. Hub-free coverage of
+    the same bug lives in
+    tests/integration/model_bridge/test_cross_run_patching_post_norm.py.
+    """
+    bridge, ht = _build_pair("allenai/OLMo-2-0425-1B", True)
     bridge.set_use_split_qkv_input(True)
     ht.set_use_split_qkv_input(True)
     _cross_run_patch_parity(
         "allenai/OLMo-2-0425-1B",
         True,
-        bridge_hook_path="blocks.0.attn.hook_q_input",
-        ht_hook_path="blocks.0.hook_q_input",
+        bridge_hook_path=f"blocks.0.attn.hook_{hook_slot}",
+        ht_hook_path=f"blocks.0.hook_{hook_slot}",
     )

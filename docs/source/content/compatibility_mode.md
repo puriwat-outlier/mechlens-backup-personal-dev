@@ -59,12 +59,13 @@ After `enable_compatibility_mode()`, these HT hook names fire on the **pre-norm 
 - `blocks.{i}.hook_attn_in`
 - `blocks.{i}.hook_mlp_in` (gated on `cfg.use_hook_mlp_in`; toggle via `bridge.set_use_hook_mlp_in(True)`)
 
-**Carve-outs** ([issue #1317](https://github.com/TransformerLensOrg/TransformerLens/issues/1317)):
+**Post-norm architectures** (OLMo 2, BERT-style): there is no norm between the block input and attention, so these hooks fire on the raw block input (`hook_resid_pre`) — the same tensor HookedTransformer feeds its attention. The capture that drives the pre-norm path is scoped to one block forward, so caching a hook on one prompt and patching it into another works the same way on post-norm and pre-norm blocks. (Earlier versions leaked the capture from `post_attention_layernorm` into the next run — see `tests/integration/model_bridge/test_cross_run_patching_post_norm.py`.)
 
-- **Post-norm architectures** (OLMo 2, BERT-style) read the **post-attention residual** instead, because the norm semantically lives elsewhere in the block.
+**Carve-out** ([issue #1317](https://github.com/TransformerLensOrg/TransformerLens/issues/1317)):
+
 - **MLA blocks** (DeepSeek V2 / V3 / R1) do **not** expose the split-qkv aliases — MLA's compressed K/V doesn't have a clean split.
 
-An adapter author for a new post-norm or MLA-style architecture must handle these carve-outs in `setup_hook_compatibility`. The Gemma1/Gemma2 adapters are exemplars of when **not** to override `setup_hook_compatibility` — `GemmaTextScaledWordEmbedding` already scales internally, so any added `hook_conversion` would double-scale `embed.hook_out`.
+An adapter author for a new MLA-style architecture must handle this carve-out in `setup_hook_compatibility`. The Gemma1/Gemma2 adapters are exemplars of when **not** to override `setup_hook_compatibility` — `GemmaTextScaledWordEmbedding` already scales internally, so any added `hook_conversion` would double-scale `embed.hook_out`.
 
 ## The four-quadrant test matrix
 
@@ -89,6 +90,6 @@ New integration tests should use the variant that matches the property they're t
 
 ## See also
 
-- [Creating Architecture Adapters in contributing.md](contributing.md#creating-architecture-adapters) — adapter contract and the four-place registration; adapter authors override `setup_hook_compatibility` only when an architecture has the post-norm / MLA carve-outs mentioned above.
+- [Creating Architecture Adapters in contributing.md](contributing.md#creating-architecture-adapters) — adapter contract and the four-place registration; adapter authors override `setup_hook_compatibility` only when an architecture has the MLA carve-out mentioned above.
 - [Debugging Numerical Divergence](debugging_numerical_divergence.md) — uses `no_processing=True` as a key bisection tool.
 - [Migrating to TransformerLens 3](migrating_to_v3.md) — when porting HT code, you almost always want `enable_compatibility_mode()`.

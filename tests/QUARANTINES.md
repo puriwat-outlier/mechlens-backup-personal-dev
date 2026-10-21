@@ -46,8 +46,9 @@ Rule ([AGENTS.md §10](../AGENTS.md#10-hard-rules)): **never add `xfail` / `skip
 | [`unit/model_bridge/supported_architectures/test_gemma2_adapter.py`:49](unit/model_bridge/supported_architectures/test_gemma2_adapter.py) | "Network/disk fetch of tiny Gemma2" |
 | [`integration/model_bridge/test_bridge_integration.py`:801](integration/model_bridge/test_bridge_integration.py) | "Skip Gemma2 in CI to avoid timeout" |
 | [`acceptance/model_bridge/compatibility/test_hook_completeness.py`:156](acceptance/model_bridge/compatibility/test_hook_completeness.py) | "Gemma2 too large for CI" |
+| [`unit/model_bridge/test_bridge_vs_hooked_transformer_patching.py`](unit/model_bridge/test_bridge_vs_hooked_transformer_patching.py) `test_olmo2_post_norm_cross_run_patch_matches_legacy` | `skipif(RUN_OLMO2_GAP_TEST != "1")` — 1B-param OLMo-2 download for Bridge-vs-HT parity; the hub-free regression for the same bug runs unconditionally in [`integration/model_bridge/test_cross_run_patching_post_norm.py`](integration/model_bridge/test_cross_run_patching_post_norm.py) |
 
-**Un-skip:** locally with `HF_TOKEN` sourced.
+**Un-skip:** locally with `HF_TOKEN` sourced (`RUN_OLMO2_GAP_TEST=1` for the OLMo-2 row).
 
 ---
 

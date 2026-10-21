@@ -166,6 +166,25 @@ class BlockBridge(GeneralizedComponent):
             handle.remove()
         self._pre_ln_capture_handles.clear()
         self._pre_ln_capture_wired = False
+        self._reset_pre_ln_capture()
+
+    def _reset_pre_ln_capture(self) -> None:
+        """Drop any residual captured by the ln1 pre-hook.
+
+        Called at the start and end of every block forward so the capture is
+        scoped to a single pass. On pre-norm blocks ln1 refills it before
+        attention reads it; on post-norm blocks (OLMo 2, BERT-style) ln1 runs
+        AFTER attention, so without this reset the second forward would fork
+        Q/K/V from the previous run's post-attention residual and re-norm it
+        with a norm that isn't a pre-norm — breaking cross-run patching.
+        """
+        from transformer_lens.model_bridge.generalized_components.attention import (
+            AttentionBridge,
+        )
+
+        attn = self.submodules.get("attn") if self.submodules else None
+        if isinstance(attn, AttentionBridge):
+            attn._captured_pre_ln_residual = None
 
     def _read_use_hook_mlp_in(self) -> bool:
         """Prefer ``block.config.use_hook_mlp_in``; fall back to the block-local flag."""
@@ -200,7 +219,13 @@ class BlockBridge(GeneralizedComponent):
         # This prevents errors when passing encoder-specific params to decoder-only models
         filtered_kwargs = self._filter_kwargs_for_forward(kwargs, len(args))
 
-        output = self.original_component(*args, **filtered_kwargs)
+        # Scope the pre-LN capture to this pass (stale captures break post-norm
+        # cross-run patching); the finally also releases the autograd graph.
+        self._reset_pre_ln_capture()
+        try:
+            output = self.original_component(*args, **filtered_kwargs)
+        finally:
+            self._reset_pre_ln_capture()
         force_tuple_for_bare_tensor = self._is_standalone_hidden_state_call(args, filtered_kwargs)
         return self._apply_output_hook(
             output, force_tuple_for_bare_tensor=force_tuple_for_bare_tensor

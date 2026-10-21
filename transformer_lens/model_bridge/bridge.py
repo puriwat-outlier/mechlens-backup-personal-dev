@@ -803,8 +803,8 @@ class TransformerBridge(HookIntrospectionMixin, nn.Module):
 
         Hook semantic parity (issue #1317): ``hook_q_input``, ``hook_k_input``,
         ``hook_v_input``, ``hook_attn_in``, and ``hook_mlp_in`` fire on the
-        pre-norm residual. Carve-outs: post-norm architectures (OLMo 2,
-        BERT-style) read the post-attention residual instead, and MLA blocks
+        pre-norm residual (the raw block input on post-norm architectures such
+        as OLMo 2, which have no norm before attention). Carve-out: MLA blocks
         (DeepSeek V2/V3/R1) do not expose the split-qkv aliases. ``hook_mlp_in``
         is gated on ``cfg.use_hook_mlp_in``; toggle it via
         :py:meth:`set_use_hook_mlp_in`.
